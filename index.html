@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>3x3 雙控魔術方塊（電腦／手機通用版）</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(circle at center, #1e222d 0%, #0f1117 100%);
+      color: #f0f2f5;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      touch-action: none;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+      touch-action: none;
+    }
+    canvas:active {
+      cursor: grabbing;
+    }
+
+    /* 頂部與側邊 UI 容器 */
+    #ui-top {
+      position: fixed;
+      top: max(12px, env(safe-area-inset-top));
+      left: max(12px, env(safe-area-inset-left));
+      right: max(12px, env(safe-area-inset-right));
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .panel {
+      background: rgba(20, 24, 33, 0.86);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 14px;
+      padding: 14px 16px;
+      pointer-events: auto;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+    }
+    #main-panel {
+      max-width: 390px;
+    }
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    h1 {
+      font-size: 1rem;
+      color: #e5e7eb;
+      font-weight: 600;
+    }
+    .front-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 999px;
+      padding: 2px 10px;
+      font-size: 0.76rem;
+      color: #e2e8f0;
+      white-space: nowrap;
+    }
+    .front-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #16a34a;
+      border: 1px solid rgba(255, 255, 255, 0.6);
+    }
+    #timer {
+      font-size: 2.5rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #4ade80;
+      line-height: 1.05;
+      margin-top: 2px;
+    }
+    #status {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      margin-top: 4px;
+      line-height: 1.35;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    button {
+      background: #2563eb;
+      color: #ffffff;
+      border: none;
+      padding: 7px 11px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    button:hover { background: #1d4ed8; }
+    button:active { transform: scale(0.96); }
+    button.secondary { background: #374151; }
+    button.secondary:hover { background: #4b5563; }
+    button.accent { background: #059669; }
+    button.accent:hover { background: #047857; }
+    button.warn { background: #b45309; }
+    button.warn:hover { background: #92400e; }
+
+    /* 自動還原速度控制 */
+    .speed-box {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .speed-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.76rem;
+      color: #cbd5e1;
+      margin-bottom: 4px;
+    }
+    #speed-val {
+      color: #60a5fa;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: #3b82f6;
+      cursor: pointer;
+      height: 18px;
+    }
+    .speed-presets {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .speed-presets button {
+      background: #1f2937;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 4px 2px;
+      font-size: 0.72rem;
+      border-radius: 6px;
+      color: #d1d5db;
+    }
+    .speed-presets button.active {
+      background: #2563eb;
+      color: #fff;
+      border-color: #60a5fa;
+    }
+
+    /* 自訂填色調色盤 */
+    #color-palette-box {
+      display: none;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    #color-palette-box.show {
+      display: block;
+    }
+    .palette-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .swatch {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      cursor: pointer;
+      transition: transform 0.12s, box-shadow 0.12s;
+    }
+    .swatch.selected {
+      transform: scale(1.18);
+      border-color: #ffffff;
+      box-shadow: 0 0 0 2px #3b82f6;
+    }
+
+    /* 電腦版右側鍵盤說明面板 */
+    #keymap {
+      font-size: 0.8rem;
+      line-height: 1.65;
+      max-width: 340px;
+    }
+    #keymap h3 {
+      margin-bottom: 6px;
+      font-size: 0.9rem;
+      color: #60a5fa;
+    }
+    .key-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px 12px;
+    }
+    kbd {
+      background: #2d333f;
+      border: 1px solid #4b5563;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: monospace;
+      color: #f9fafb;
+    }
+    .hint {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      color: #cbd5e1;
+      font-size: 0.75rem;
+      line-height: 1.45;
+    }
+
+    /* 手機 / 平板觸控虛擬按鍵列 */
+    #mobile-pad-toggle {
+      display: none;
+    }
+    #touch-pad {
+      position: fixed;
+      bottom: max(10px, env(safe-area-inset-bottom));
+      left: max(10px, env(safe-area-inset-left));
+      right: max(10px, env(safe-area-inset-right));
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      pointer-events: none;
+    }
+    .pad-card {
+      width: 100%;
+      max-width: 520px;
+      background: rgba(20, 24, 33, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 14px;
+      padding: 8px 10px;
+      pointer-events: auto;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+    }
+    .pad-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.74rem;
+      color: #9ca3af;
+      margin-bottom: 6px;
+      padding: 0 2px;
+    }
+    .pad-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+    .pad-btn {
+      background: #262c3a;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #f8fafc;
+      padding: 9px 4px;
+      border-radius: 9px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      line-height: 1.15;
+    }
+    .pad-btn span.sub {
+      font-size: 0.66rem;
+      font-weight: 400;
+      color: #93c5fd;
+      margin-top: 2px;
+    }
+    .pad-btn:active {
+      background: #2563eb;
+      transform: scale(0.95);
+    }
+
+    /* 響應式版面調整：手機與窄螢幕自動精簡 */
+    @media (max-width: 820px) {
+      #keymap {
+        display: none;
+      }
+      #main-panel {
+        width: 100%;
+        max-width: 100%;
+        padding: 10px 12px;
+      }
+      h1 {
+        font-size: 0.92rem;
+      }
+      #timer {
+        font-size: 1.95rem;
+      }
+      #status {
+        font-size: 0.74rem;
+      }
+      .controls {
+        margin-top: 8px;
+        gap: 5px;
+      }
+      button {
+        padding: 6px 9px;
+        font-size: 0.76rem;
+      }
+      .speed-box {
+        margin-top: 8px;
+        padding-top: 6px;
+      }
+      #mobile-pad-toggle {
+        display: inline-block;
+      }
+      .pad-card.collapsed .pad-grid {
+        display: none;
+      }
+    }
+    @media (min-width: 821px) {
+      #touch-pad {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<div id="ui-top">
+  <div class="panel" id="main-panel">
+    <div class="header-row">
+      <h1>3x3 雙控魔術方塊（白底配置）</h1>
+      <div class="front-badge" title="鍵盤與觸控按鍵皆以此正面為基準">
+        <span class="front-dot" id="front-dot"></span>
+        <span id="front-label">正面：綠 (F)</span>
+      </div>
+    </div>
+    <div id="timer">0.00</div>
+    <div id="status">單指滑動方塊轉層｜背景拖曳旋轉｜雙指縮放</div>
+    <div class="controls">
+      <button id="btn-scramble">打亂 (Space)</button>
+      <button id="btn-custom" class="accent">自訂填色</button>
+      <button id="btn-solve" class="secondary">自動還原</button>
+      <button id="btn-reset" class="secondary">重置</button>
+      <button id="btn-view" class="secondary">重置視角</button>
+      <button id="mobile-pad-toggle" class="secondary">隱藏按鍵</button>
+    </div>
+
+    <!-- 自訂填色工具列 -->
+    <div id="color-palette-box">
+      <div class="palette-row" id="palette-swatches"></div>
+      <div class="controls" style="margin-top: 4px;">
+        <button id="btn-clear-gray" class="warn">全設為灰（清空）</button>
+        <button id="btn-finish-custom" class="accent">完成並開始解題</button>
+      </div>
+    </div>
+
+    <!-- 自動還原速度控制 -->
+    <div class="speed-box">
+      <div class="speed-header">
+        <span>自動還原速度（每步耗時）</span>
+        <span id="speed-val">250 ms</span>
+      </div>
+      <input type="range" id="speed-slider" min="60" max="1200" step="10" value="250" />
+      <div class="speed-presets">
+        <button type="button" data-speed="900">超慢 (0.9s)</button>
+        <button type="button" data-speed="500">慢速 (0.5s)</button>
+        <button type="button" data-speed="250" class="active">正常 (0.25s)</button>
+        <button type="button" data-speed="80">極速 (0.08s)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 電腦版鍵盤操作說明 -->
+  <div class="panel" id="keymap">
+    <h3>數字鍵盤操作（依目前正面方向）</h3>
+    <div class="key-grid">
+      <div><kbd>9</kbd> 右上 &nbsp;/&nbsp; <kbd>3</kbd> 右下</div>
+      <div><kbd>7</kbd> 左上 &nbsp;/&nbsp; <kbd>1</kbd> 左下</div>
+      <div><kbd>8</kbd> 上左 &nbsp;/&nbsp; <kbd>5</kbd> 上右</div>
+      <div><kbd>2</kbd> 下右 &nbsp;/&nbsp; <kbd>0</kbd> 下左</div>
+      <div><kbd>6</kbd> 前順 &nbsp;/&nbsp; <kbd>4</kbd> 前逆</div>
+      <div><kbd>-</kbd> 後左 &nbsp;/&nbsp; <kbd>+</kbd> 後右</div>
+      <div><kbd>*</kbd> 中上 &nbsp;/&nbsp; <kbd>/</kbd> 中下</div>
+      <div><kbd>.</kbd> 視角右 &nbsp;/&nbsp; <kbd>Enter</kbd> 視角左</div>
+    </div>
+    <div class="hint">
+      • <strong>所見即所得</strong>：轉動視角後，按鍵直接以「眼前正面」為準<br>
+      • <strong>滑鼠／觸控</strong>：方塊表面滑動轉層；空白處拖曳旋轉視角；雙擊重置視角
+    </div>
+  </div>
+</div>
+
+<!-- 手機／平板專屬觸控按鍵面板（同樣依目前正面基準轉動） -->
+<div id="touch-pad">
+  <div class="pad-card" id="pad-card">
+    <div class="pad-header">
+      <span>觸控快捷轉動（依目前眼前正面）</span>
+      <span>雙指捏合可縮放大小</span>
+    </div>
+    <div class="pad-grid">
+      <button class="pad-btn" data-act="L_UP">左上<span class="sub">7</span></button>
+      <button class="pad-btn" data-act="U_LEFT">上左<span class="sub">8</span></button>
+      <button class="pad-btn" data-act="U_RIGHT">上右<span class="sub">5</span></button>
+      <button class="pad-btn" data-act="R_UP">右上<span class="sub">9</span></button>
+
+      <button class="pad-btn" data-act="L_DOWN">左下<span class="sub">1</span></button>
+      <button class="pad-btn" data-act="F_CCW">前逆<span class="sub">4</span></button>
+      <button class="pad-btn" data-act="F_CW">前順<span class="sub">6</span></button>
+      <button class="pad-btn" data-act="R_DOWN">右下<span class="sub">3</span></button>
+
+      <button class="pad-btn" data-act="D_LEFT">下左<span class="sub">0</span></button>
+      <button class="pad-btn" data-act="D_RIGHT">下右<span class="sub">2</span></button>
+      <button class="pad-btn" data-act="M_UP">中上<span class="sub">*</span></button>
+      <button class="pad-btn" data-act="M_DOWN">中下<span class="sub">/</span></button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const canvasContainer = document.getElementById('canvas-container');
+  const canvas = document.createElement('canvas');
+  canvasContainer.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+
+  // 顏色定義（白底朝下配置：下白 D、上黃 U、前綠 F、後藍 B、右橘 R、左紅 L）
+  const PALETTE = {
+    U: { hex: '#facc15', name: '黃色', label: '黃 (U)' },
+    D: { hex: '#f8fafc', name: '白色', label: '白 (D)' },
+    F: { hex: '#16a34a', name: '綠色', label: '綠 (F)' },
+    B: { hex: '#2563eb', name: '藍色', label: '藍 (B)' },
+    R: { hex: '#f97316', name: '橘色', label: '橘 (R)' },
+    L: { hex: '#dc2626', name: '紅色', label: '紅 (L)' },
+    GRAY: { hex: '#4b5563', name: '灰色', label: '灰' },
+    CORE: { hex: '#111318', name: '核心', label: '' }
+  };
+
+  let width = 0, height = 0, dpr = 1;
+  // 相機狀態（右手坐標系：+X 右, +Y 上, +Z 朝螢幕外）
+  let camYaw = -0.58;
+  let camPitch = 0.46;
+  let camDist = 9.2;
+
+  function updateDefaultCamDist() {
+    // 手機直式螢幕自動調整視距，避免被上下 UI 遮住
+    const minDim = Math.min(window.innerWidth, window.innerHeight);
+    if (window.innerWidth <= 820) {
+      camDist = window.innerHeight > window.innerWidth ? 10.6 : 9.4;
+    } else {
+      camDist = 9.2;
+    }
+  }
+  updateDefaultCamDist();
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // 向量數學工具
+  function rotateX(v, a) {
+    const c = Math.cos(a), s = Math.sin(a);
+    return { x: v.x, y: v.y * c - v.z * s, z: v.y * s + v.z * c };
+  }
+  function rotateY(v, a) {
+    const c = Math.cos(a), s = Math.sin(a);
+    return { x: v.x * c + v.z * s, y: v.y, z: -v.x * s + v.z * c };
+  }
+  function rotateZ(v, a) {
+    const c = Math.cos(a), s = Math.sin(a);
+    return { x: v.x * c - v.y * s, y: v.x * s + v.y * c, z: v.z };
+  }
+  function rotateAxis(v, axis, a) {
+    if (axis === 'x') return rotateX(v, a);
+    if (axis === 'y') return rotateY(v, a);
+    return rotateZ(v, a);
+  }
+
+  // 世界座標轉相機與螢幕投影
+  function worldToCamera(v) {
+    let p = rotateY(v, camYaw);
+    p = rotateX(p, camPitch);
+    return p;
+  }
+
+  function cameraToWorld(v) {
+    let p = rotateX(v, -camPitch);
+    p = rotateY(p, -camYaw);
+    return p;
+  }
+
+  function project(v) {
+    const p = worldToCamera(v);
+    const fov = Math.min(width, height) * 1.15;
+    const zOffset = camDist - p.z;
+    const scale = fov / Math.max(zOffset, 1.5);
+    // 手機直立畫面將魔方略微上移一點，避開底部虛擬按鍵面板
+    const centerYOffset = (window.innerWidth <= 820 && window.innerHeight > window.innerWidth) ? -height * 0.03 : 0;
+    return {
+      x: width / 2 + p.x * scale,
+      y: height / 2 + centerYOffset - p.y * scale,
+      z: p.z,
+      scale: scale
+    };
+  }
+
+  // 取得目前螢幕眼前的「正面」與「頂面」世界軸向（所見即所得基準）
+  function getViewBasis() {
+    // 相機在世界空間的朝向向量
+    const camForward = cameraToWorld({ x: 0, y: 0, z: 1 }); // 從原點指向相機的向量
+    const camUp = cameraToWorld({ x: 0, y: 1, z: 0 });
+    const camRight = cameraToWorld({ x: 1, y: 0, z: 0 });
+
+    const cardinalAxes = [
+      { axis: 'x', sign: 1,  vec: { x: 1, y: 0, z: 0 }, faceKey: 'R' },
+      { axis: 'x', sign: -1, vec: { x: -1, y: 0, z: 0 }, faceKey: 'L' },
+      { axis: 'y', sign: 1,  vec: { x: 0, y: 1, z: 0 }, faceKey: 'U' },
+      { axis: 'y', sign: -1, vec: { x: 0, y: -1, z: 0 }, faceKey: 'D' },
+      { axis: 'z', sign: 1,  vec: { x: 0, y: 0, z: 1 }, faceKey: 'F' },
+      { axis: 'z', sign: -1, vec: { x: 0, y: 0, z: -1 }, faceKey: 'B' }
+    ];
+
+    function bestMatch(targetVec, excludeAxis = null) {
+      let best = null, maxDot = -999;
+      for (const item of cardinalAxes) {
+        if (excludeAxis && item.axis === excludeAxis) continue;
+        const dot = item.vec.x * targetVec.x + item.vec.y * targetVec.y + item.vec.z * targetVec.z;
+        if (dot > maxDot) {
+          maxDot = dot;
+          best = item;
+        }
+      }
+      return best;
+    }
+
+    const front = bestMatch(camForward);
+    const up = bestMatch(camUp, front.axis);
+    // 右手定則：right = up × front
+    const rx = up.vec.y * front.vec.z - up.vec.z * front.vec.y;
+    const ry = up.vec.z * front.vec.x - up.vec.x * front.vec.z;
+    const rz = up.vec.x * front.vec.y - up.vec.y * front.vec.x;
+    const right = bestMatch({ x: rx, y: ry, z: rz });
+
+    return { front, up, right };
+  }
+
+  // 更新左上角「目前正面」顏色指示器
+  const frontDotEl = document.getElementById('front-dot');
+  const frontLabelEl = document.getElementById('front-label');
+  let lastFrontFaceKey = '';
+
+  function updateFrontIndicator() {
+    const { front } = getViewBasis();
+    // 尋找該面中心塊目前的實際顏色
+    const centerCubie = cubies.find(c =>
+      c.pos.x === front.vec.x && c.pos.y === front.vec.y && c.pos.z === front.vec.z
+    );
+    let colorKey = front.faceKey;
+    if (centerCubie) {
+      const face = centerCubie.faces.find(f =>
+        Math.round(f.normal.x) === front.vec.x &&
+        Math.round(f.normal.y) === front.vec.y &&
+        Math.round(f.normal.z) === front.vec.z
+      );
+      if (face && PALETTE[face.color]) {
+        colorKey = face.color;
+      }
+    }
+    const badgeId = colorKey + '_' + front.faceKey;
+    if (badgeId !== lastFrontFaceKey) {
+      lastFrontFaceKey = badgeId;
+      const p = PALETTE[colorKey] || PALETTE[front.faceKey];
+      frontDotEl.style.background = p.hex;
+      frontLabelEl.textContent = `正面：${p.name} (${front.faceKey})`;
+    }
+  }
+
+  // 建立 27 顆小方塊
+  let cubies = [];
+  const FACE_DIRS = [
+    { key: 'R', normal: { x: 1, y: 0, z: 0 } },
+    { key: 'L', normal: { x: -1, y: 0, z: 0 } },
+    { key: 'U', normal: { x: 0, y: 1, z: 0 } },
+    { key: 'D', normal: { x: 0, y: -1, z: 0 } },
+    { key: 'F', normal: { x: 0, y: 0, z: 1 } },
+    { key: 'B', normal: { x: 0, y: 0, z: -1 } }
+  ];
+
+  function createCube() {
+    cubies = [];
+    for (let x = -1; x <= 1; x++) {
+      for (let y = -1; y <= 1; y++) {
+        for (let z = -1; z <= 1; z++) {
+          const isCenter = (Math.abs(x) + Math.abs(y) + Math.abs(z)) === 1;
+          const faces = FACE_DIRS.map(fd => {
+            const isOuter =
+              (fd.key === 'R' && x === 1) ||
+              (fd.key === 'L' && x === -1) ||
+              (fd.key === 'U' && y === 1) ||
+              (fd.key === 'D' && y === -1) ||
+              (fd.key === 'F' && z === 1) ||
+              (fd.key === 'B' && z === -1);
+            return {
+              normal: { ...fd.normal },
+              color: isOuter ? fd.key : 'CORE',
+              isOuter: isOuter,
+              isCenterSticker: isOuter && isCenter
+            };
+          });
+          cubies.push({
+            pos: { x, y, z },
+            faces
+          });
+        }
+      }
+    }
+  }
+  createCube();
+
+  // 動畫佇列與計時器
+  let moveQueue = [];
+  let moveHistory = [];
+  let currentAnim = null;
+  let solveStepDuration = 250;
+
+  let timerState = 'IDLE'; // IDLE, READY, RUNNING, SOLVED
+  let startTime = 0;
+  let timerInterval = null;
+  const timerEl = document.getElementById('timer');
+  const statusEl = document.getElementById('status');
+
+  let customMode = false;
+  let selectedBrush = 'U';
+
+  function startTimer() {
+    if (timerState !== 'READY') return;
+    timerState = 'RUNNING';
+    startTime = performance.now();
+    statusEl.textContent = '計時中... 六面全部還原自動停表';
+    timerInterval = setInterval(() => {
+      timerEl.textContent = ((performance.now() - startTime) / 1000).toFixed(2);
+    }, 30);
+  }
+
+  function stopTimer(solved = true) {
+    clearInterval(timerInterval);
+    timerState = solved ? 'SOLVED' : 'IDLE';
+    if (solved) {
+      timerEl.style.color = '#38bdf8';
+      statusEl.textContent = '恭喜還原！按「打亂」再來一局';
+    }
+  }
+
+  function checkSolved() {
+    // 檢查六個方向的所有外露貼紙是否各自同色且不含灰色
+    for (const fd of FACE_DIRS) {
+      let faceColor = null;
+      for (const c of cubies) {
+        if (
+          (fd.key === 'R' && c.pos.x === 1) ||
+          (fd.key === 'L' && c.pos.x === -1) ||
+          (fd.key === 'U' && c.pos.y === 1) ||
+          (fd.key === 'D' && c.pos.y === -1) ||
+          (fd.key === 'F' && c.pos.z === 1) ||
+          (fd.key === 'B' && c.pos.z === -1)
+        ) {
+          const sticker = c.faces.find(f =>
+            Math.round(f.normal.x) === fd.normal.x &&
+            Math.round(f.normal.y) === fd.normal.y &&
+            Math.round(f.normal.z) === fd.normal.z
+          );
+          if (!sticker || sticker.color === 'GRAY' || sticker.color === 'CORE') return false;
+          if (!faceColor) faceColor = sticker.color;
+          else if (sticker.color !== faceColor) return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  function enqueueMove(axis, layer, angle, isPlayer = true, duration = 120, record = true) {
+    if (customMode) return;
+    moveQueue.push({ axis, layer, angle, isPlayer, duration, record });
+    if (!currentAnim) startNextMove();
+  }
+
+  function startNextMove() {
+    if (moveQueue.length === 0) {
+      currentAnim = null;
+      return;
+    }
+    const next = moveQueue.shift();
+    if (next.isPlayer && next.layer !== null && timerState === 'READY') {
+      startTimer();
+    }
+    currentAnim = {
+      ...next,
+      startTime: performance.now(),
+      progress: 0
+    };
+  }
+
+  function applyDiscreteMove(axis, layer, angle) {
+    for (const c of cubies) {
+      const match = (layer === null) || (Math.round(c.pos[axis]) === layer);
+      if (match) {
+        const np = rotateAxis(c.pos, axis, angle);
+        c.pos.x = Math.round(np.x);
+        c.pos.y = Math.round(np.y);
+        c.pos.z = Math.round(np.z);
+        for (const f of c.faces) {
+          const nn = rotateAxis(f.normal, axis, angle);
+          f.normal.x = Math.round(nn.x);
+          f.normal.y = Math.round(nn.y);
+          f.normal.z = Math.round(nn.z);
+        }
+      }
+    }
+  }
+
+  // 依據目前相機正面方向，將「所見即所得動作」轉換為世界軸向轉動
+  function executeViewAction(actionName) {
+    if (customMode) return;
+    const { front, up, right } = getViewBasis();
+    const Q = Math.PI / 2;
+
+    // 右手定則：繞 +axis 轉 +Q 時，從 +axis 正向看過去為逆時針
+    switch (actionName) {
+      case 'R_UP':    enqueueMove(right.axis, right.sign, -right.sign * Q); break;
+      case 'R_DOWN':  enqueueMove(right.axis, right.sign,  right.sign * Q); break;
+      case 'L_UP':    enqueueMove(right.axis, -right.sign, -right.sign * Q); break;
+      case 'L_DOWN':  enqueueMove(right.axis, -right.sign,  right.sign * Q); break;
+
+      case 'U_LEFT':  enqueueMove(up.axis, up.sign,  up.sign * Q); break;
+      case 'U_RIGHT': enqueueMove(up.axis, up.sign, -up.sign * Q); break;
+      case 'D_RIGHT': enqueueMove(up.axis, -up.sign,  up.sign * Q); break;
+      case 'D_LEFT':  enqueueMove(up.axis, -up.sign, -up.sign * Q); break;
+
+      case 'F_CW':    enqueueMove(front.axis, front.sign, -front.sign * Q); break;
+      case 'F_CCW':   enqueueMove(front.axis, front.sign,  front.sign * Q); break;
+      case 'B_LEFT':  enqueueMove(front.axis, -front.sign, -front.sign * Q); break;
+      case 'B_RIGHT': enqueueMove(front.axis, -front.sign,  front.sign * Q); break;
+
+      case 'M_UP':    enqueueMove(right.axis, 0, -right.sign * Q); break;
+      case 'M_DOWN':  enqueueMove(right.axis, 0,  right.sign * Q); break;
+
+      case 'VIEW_RIGHT': enqueueMove(up.axis, null, -up.sign * Q); break;
+      case 'VIEW_LEFT':  enqueueMove(up.axis, null,  up.sign * Q); break;
+    }
+  }
+
+  // 3D 面片渲染與點擊碰撞快取
+  let renderedStickers = [];
+
+  function drawCube(now) {
+    ctx.clearRect(0, 0, width, height);
+    updateFrontIndicator();
+
+    let animAngle = 0;
+    if (currentAnim) {
+      const elapsed = now - currentAnim.startTime;
+      const t = Math.min(elapsed / currentAnim.duration, 1);
+      const ease = 1 - Math.pow(1 - t, 3);
+      animAngle = currentAnim.angle * ease;
+      if (t >= 1) {
+        applyDiscreteMove(currentAnim.axis, currentAnim.layer, currentAnim.angle);
+        if (currentAnim.record) {
+          moveHistory.push({
+            axis: currentAnim.axis,
+            layer: currentAnim.layer,
+            angle: -currentAnim.angle
+          });
+        }
+        currentAnim = null;
+        if (timerState === 'RUNNING' && checkSolved()) {
+          stopTimer(true);
+        }
+        startNextMove();
+      }
+    }
+
+    const polys = [];
+    const half = 0.48;
+    const stickerHalf = 0.425;
+
+    for (const c of cubies) {
+      const isRotating = currentAnim && (
+        currentAnim.layer === null || Math.round(c.pos[currentAnim.axis]) === currentAnim.layer
+      );
+
+      let centerPos = { ...c.pos };
+      if (isRotating) {
+        centerPos = rotateAxis(centerPos, currentAnim.axis, animAngle);
+      }
+
+      for (const f of c.faces) {
+        let n = { ...f.normal };
+        if (isRotating) {
+          n = rotateAxis(n, currentAnim.axis, animAngle);
+        }
+
+        // 背面剔除（計算面片中心指向相機的向量與法向量點積）
+        const faceWorldCenter = {
+          x: centerPos.x + n.x * half,
+          y: centerPos.y + n.y * half,
+          z: centerPos.z + n.z * half
+        };
+        const camSpaceCenter = worldToCamera(faceWorldCenter);
+        const camSpaceNormal = worldToCamera(n);
+        // 相機在 (0, 0, camDist)
+        const toCam = {
+          x: -camSpaceCenter.x,
+          y: -camSpaceCenter.y,
+          z: camDist - camSpaceCenter.z
+        };
+        const dot = camSpaceNormal.x * toCam.x + camSpaceNormal.y * toCam.y + camSpaceNormal.z * toCam.z;
+        if (dot <= 0.02) continue;
+
+        // 構造面片四個頂點（局部未旋轉狀態先求四頂點，再統一套用動畫旋轉）
+        const rawN = f.normal;
+        let uAxis, vAxis;
+        if (Math.abs(rawN.x) > 0.5) {
+          uAxis = { x: 0, y: 1, z: 0 };
+          vAxis = { x: 0, y: 0, z: 1 };
+        } else if (Math.abs(rawN.y) > 0.5) {
+          uAxis = { x: 1, y: 0, z: 0 };
+          vAxis = { x: 0, y: 0, z: 1 };
+        } else {
+          uAxis = { x: 1, y: 0, z: 0 };
+          vAxis = { x: 0, y: 1, z: 0 };
+        }
+
+        const cornersBase = [
+          { du: -1, dv: -1 },
+          { du:  1, dv: -1 },
+          { du:  1, dv:  1 },
+          { du: -1, dv:  1 }
+        ];
+
+        function buildQuad(size) {
+          return cornersBase.map(cb => {
+            let pt = {
+              x: c.pos.x + rawN.x * half + uAxis.x * cb.du * size + vAxis.x * cb.dv * size,
+              y: c.pos.y + rawN.y * half + uAxis.y * cb.du * size + vAxis.y * cb.dv * size,
+              z: c.pos.z + rawN.z * half + uAxis.z * cb.du * size + vAxis.z * cb.dv * size
+            };
+            if (isRotating) {
+              pt = rotateAxis(pt, currentAnim.axis, animAngle);
+            }
+            return project(pt);
+          });
+        }
+
+        const baseQuad = buildQuad(half);
+        const avgZ = (baseQuad[0].z + baseQuad[1].z + baseQuad[2].z + baseQuad[3].z) / 4;
+
+        polys.push({
+          avgZ,
+          baseQuad,
+          stickerQuad: f.isOuter ? buildQuad(stickerHalf) : null,
+          colorKey: f.color,
+          cubie: c,
+          faceObj: f,
+          worldNormal: { ...f.normal },
+          worldCenter: faceWorldCenter
+        });
+      }
+    }
+
+    // 畫家演算法：由遠到近排序繪製
+    polys.sort((a, b) => a.avgZ - b.avgZ);
+    renderedStickers = [];
+
+    for (const p of polys) {
+      // 黑色塑膠底座
+      ctx.beginPath();
+      ctx.moveTo(p.baseQuad[0].x, p.baseQuad[0].y);
+      for (let i = 1; i < 4; i++) ctx.lineTo(p.baseQuad[i].x, p.baseQuad[i].y);
+      ctx.closePath();
+      ctx.fillStyle = PALETTE.CORE.hex;
+      ctx.fill();
+      ctx.strokeStyle = '#090a0d';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      // 彩色貼紙
+      if (p.stickerQuad) {
+        ctx.beginPath();
+        ctx.moveTo(p.stickerQuad[0].x, p.stickerQuad[0].y);
+        for (let i = 1; i < 4; i++) ctx.lineTo(p.stickerQuad[i].x, p.stickerQuad[i].y);
+        ctx.closePath();
+        const col = PALETTE[p.colorKey] ? PALETTE[p.colorKey].hex : PALETTE.GRAY.hex;
+        ctx.fillStyle = col;
+        ctx.fill();
+
+        if (customMode && !p.faceObj.isCenterSticker) {
+          ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+        renderedStickers.push(p);
+      }
+    }
+
+    requestAnimationFrame(drawCube);
+  }
+  requestAnimationFrame(drawCube);
+
+  // 多邊形點擊碰撞檢測（Ray-casting 2D）
+  function pointInQuad(px, py, quad) {
+    let inside = false;
+    for (let i = 0, j = 3; i < 4; j = i++) {
+      const xi = quad[i].x, yi = quad[i].y;
+      const xj = quad[j].x, yj = quad[j].y;
+      const intersect = ((yi > py) !== (yj > py)) &&
+        (px < (xj - xi) * (py - yi) / ((yj - yi) || 1e-9) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  }
+
+  function hitTestSticker(clientX, clientY) {
+    // 由近到遠檢查（renderedStickers 已由遠到近排序，故反向遍歷）
+    for (let i = renderedStickers.length - 1; i >= 0; i--) {
+      const item = renderedStickers[i];
+      if (pointInQuad(clientX, clientY, item.baseQuad)) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  // 滑鼠＋單指＋雙指縮放統一觸控與指標控制器
+  const activePointers = new Map();
+  let gestureMode = null; // 'ORBIT', 'SLICE', 'PINCH'
+  let sliceHit = null;
+  let startX = 0, startY = 0;
+  let lastX = 0, lastY = 0;
+  let lastPinchDist = 0;
+  let lastTapTime = 0;
+
+  canvas.addEventListener('pointerdown', (e) => {
+    canvas.setPointerCapture(e.pointerId);
+    activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    // 雙指捏合縮放模式
+    if (activePointers.size === 2) {
+      gestureMode = 'PINCH';
+      sliceHit = null;
+      const pts = Array.from(activePointers.values());
+      lastPinchDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      return;
+    }
+
+    if (activePointers.size === 1) {
+      startX = lastX = e.clientX;
+      startY = lastY = e.clientY;
+      const hit = hitTestSticker(e.clientX, e.clientY);
+
+      if (customMode) {
+        if (hit && !hit.faceObj.isCenterSticker) {
+          hit.faceObj.color = selectedBrush;
+          gestureMode = 'PAINTED';
+        } else {
+          gestureMode = 'ORBIT';
+        }
+        return;
+      }
+
+      if (hit && !currentAnim) {
+        gestureMode = 'SLICE';
+        sliceHit = hit;
+      } else {
+        gestureMode = 'ORBIT';
+        sliceHit = null;
+      }
+    }
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!activePointers.has(e.pointerId)) return;
+    activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    // 雙指捏合縮放
+    if (gestureMode === 'PINCH' && activePointers.size === 2) {
+      const pts = Array.from(activePointers.values());
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      if (lastPinchDist > 0) {
+        const delta = lastPinchDist - dist;
+        camDist = Math.max(5.5, Math.min(16, camDist + delta * 0.025));
+      }
+      lastPinchDist = dist;
+      return;
+    }
+
+    if (activePointers.size !== 1) return;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    lastX = e.clientX;
+    lastY = e.clientY;
+
+    if (gestureMode === 'ORBIT') {
+      camYaw += dx * 0.0085;
+      camPitch += dy * 0.0085;
+      camPitch = Math.max(-1.42, Math.min(1.42, camPitch));
+      return;
+    }
+
+    if (gestureMode === 'SLICE' && sliceHit) {
+      const totalDx = e.clientX - startX;
+      const totalDy = e.clientY - startY;
+      if (Math.hypot(totalDx, totalDy) < 18) return;
+
+      gestureMode = 'SLICE_DONE';
+      const drag2D = { x: totalDx, y: totalDy };
+      const dragLen = Math.hypot(drag2D.x, drag2D.y);
+      drag2D.x /= dragLen;
+      drag2D.y /= dragLen;
+
+      const normal = sliceHit.worldNormal;
+      const axes = ['x', 'y', 'z'];
+      const tangentAxes = axes.filter(ax => Math.abs(normal[ax]) < 0.5);
+
+      let bestMove = null;
+      let maxDot = -1;
+
+      for (const moveAxis of tangentAxes) {
+        const dir3D = { x: 0, y: 0, z: 0 };
+        dir3D[moveAxis] = 1;
+
+        const p1 = project(sliceHit.worldCenter);
+        const p2 = project({
+          x: sliceHit.worldCenter.x + dir3D.x * 0.5,
+          y: sliceHit.worldCenter.y + dir3D.y * 0.5,
+          z: sliceHit.worldCenter.z + dir3D.z * 0.5
+        });
+
+        const sdx = p2.x - p1.x;
+        const sdy = p2.y - p1.y;
+        const sLen = Math.hypot(sdx, sdy);
+        if (sLen < 1e-4) continue;
+
+        const dot = (sdx / sLen) * drag2D.x + (sdy / sLen) * drag2D.y;
+        if (Math.abs(dot) > maxDot) {
+          maxDot = Math.abs(dot);
+          const sign = dot > 0 ? 1 : -1;
+          const moveVec = { x: dir3D.x * sign, y: dir3D.y * sign, z: dir3D.z * sign };
+
+          // 旋轉軸 = normal × moveVec（右手定則）
+          const rx = Math.round(normal.y * moveVec.z - normal.z * moveVec.y);
+          const ry = Math.round(normal.z * moveVec.x - normal.x * moveVec.z);
+          const rz = Math.round(normal.x * moveVec.y - normal.y * moveVec.x);
+          const rotVec = { x: rx, y: ry, z: rz };
+          const rotAxis = axes.find(ax => Math.abs(rotVec[ax]) > 0.5);
+          const angle = rotVec[rotAxis] * (Math.PI / 2);
+          const layer = Math.round(sliceHit.cubie.pos[rotAxis]);
+
+          bestMove = { axis: rotAxis, layer, angle };
+        }
+      }
+
+      if (bestMove) {
+        enqueueMove(bestMove.axis, bestMove.layer, bestMove.angle, true, 120, true);
+      }
+    }
+  });
+
+  function handlePointerEnd(e) {
+    if (activePointers.has(e.pointerId)) {
+      activePointers.delete(e.pointerId);
+    }
+    if (activePointers.size === 0) {
+      // 雙擊空白處重置視角（支援手機雙點與電腦雙擊）
+      if (gestureMode === 'ORBIT' && Math.hypot(e.clientX - startX, e.clientY - startY) < 8) {
+        const now = performance.now();
+        if (now - lastTapTime < 300) {
+          resetCameraView();
+        }
+        lastTapTime = now;
+      }
+      gestureMode = null;
+      sliceHit = null;
+    } else if (activePointers.size === 1) {
+      const rem = Array.from(activePointers.values())[0];
+      lastX = startX = rem.x;
+      lastY = startY = rem.y;
+      gestureMode = 'ORBIT';
+    }
+  }
+
+  canvas.addEventListener('pointerup', handlePointerEnd);
+  canvas.addEventListener('pointercancel', handlePointerEnd);
+
+  // 電腦滾輪縮放
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    camDist = Math.max(5.5, Math.min(16, camDist + e.deltaY * 0.008));
+  }, { passive: false });
+
+  // 數字鍵盤綁定（同時支援 Numpad 與主鍵盤數字鍵）
+  const KEY_TO_ACTION = {
+    'Numpad9': 'R_UP',    'Digit9': 'R_UP',
+    'Numpad3': 'R_DOWN',  'Digit3': 'R_DOWN',
+    'Numpad7': 'L_UP',    'Digit7': 'L_UP',
+    'Numpad1': 'L_DOWN',  'Digit1': 'L_DOWN',
+    'Numpad8': 'U_LEFT',  'Digit8': 'U_LEFT',
+    'Numpad5': 'U_RIGHT', 'Digit5': 'U_RIGHT',
+    'Numpad2': 'D_RIGHT', 'Digit2': 'D_RIGHT',
+    'Numpad0': 'D_LEFT',  'Digit0': 'D_LEFT',
+    'Numpad6': 'F_CW',    'Digit6': 'F_CW',
+    'Numpad4': 'F_CCW',   'Digit4': 'F_CCW',
+    'NumpadSubtract': 'B_LEFT',  'Minus': 'B_LEFT',
+    'NumpadAdd':      'B_RIGHT', 'Equal': 'B_RIGHT',
+    'NumpadMultiply': 'M_UP',
+    'NumpadDivide':   'M_DOWN',  'Slash': 'M_DOWN',
+    'NumpadDecimal':  'VIEW_RIGHT', 'Period': 'VIEW_RIGHT',
+    'NumpadEnter':    'VIEW_LEFT',  'Enter':  'VIEW_LEFT'
+  };
+
+  window.addEventListener('keydown', (e) => {
+    if (e.repeat) return;
+    if (e.code === 'Space') {
+      e.preventDefault();
+      scrambleCube();
+      return;
+    }
+    if (e.code === 'Escape') {
+      resetCube();
+      return;
+    }
+    const action = KEY_TO_ACTION[e.code];
+    if (action) {
+      e.preventDefault();
+      executeViewAction(action);
+    }
+  });
+
+  // 手機虛擬按鍵綁定
+  document.querySelectorAll('.pad-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const act = btn.getAttribute('data-act');
+      if (act) executeViewAction(act);
+    });
+  });
+
+  const padCard = document.getElementById('pad-card');
+  const togglePadBtn = document.getElementById('mobile-pad-toggle');
+  togglePadBtn.addEventListener('click', () => {
+    const collapsed = padCard.classList.toggle('collapsed');
+    togglePadBtn.textContent = collapsed ? '顯示按鍵' : '隱藏按鍵';
+  });
+
+  // 打亂、還原、重置與速度調整
+  function scrambleCube() {
+    if (customMode) exitCustomMode(false);
+    if (currentAnim || moveQueue.length > 0) return;
+    resetCube();
+    const axes = ['x', 'y', 'z'];
+    const layers = [-1, 1];
+    const angles = [Math.PI / 2, -Math.PI / 2];
+    let lastAxis = '';
+
+    for (let i = 0; i < 20; i++) {
+      let ax;
+      do {
+        ax = axes[Math.floor(Math.random() * axes.length)];
+      } while (ax === lastAxis && Math.random() > 0.3);
+      lastAxis = ax;
+      const ly = layers[Math.floor(Math.random() * layers.length)];
+      const ang = angles[Math.floor(Math.random() * angles.length)];
+      enqueueMove(ax, ly, ang, false, 40, true);
+    }
+    timerState = 'READY';
+    timerEl.style.color = '#facc15';
+    statusEl.textContent = '已打亂！滑動方塊或按鍵開始計時';
+  }
+
+  function autoSolve() {
+    if (customMode) {
+      statusEl.textContent = '請先點擊「完成並開始解題」離開填色模式';
+      return;
+    }
+    if (currentAnim || moveQueue.length > 0 || moveHistory.length === 0) return;
+    stopTimer(false);
+    statusEl.textContent = `自動還原中（每步 ${solveStepDuration} ms）...`;
+    const rev = [...moveHistory].reverse();
+    moveHistory = [];
+    rev.forEach(m => {
+      enqueueMove(m.axis, m.layer, m.angle, false, solveStepDuration, false);
+    });
+  }
+
+  function resetCube() {
+    if (customMode) exitCustomMode(false);
+    moveQueue = [];
+    moveHistory = [];
+    currentAnim = null;
+    stopTimer(false);
+    timerEl.textContent = '0.00';
+    timerEl.style.color = '#4ade80';
+    statusEl.textContent = '單指滑動方塊轉層｜背景拖曳旋轉｜雙指縮放';
+    createCube();
+  }
+
+  function resetCameraView() {
+    camYaw = -0.58;
+    camPitch = 0.46;
+    updateDefaultCamDist();
+  }
+
+  // 自訂填色調色盤
+  const paletteBox = document.getElementById('color-palette-box');
+  const swatchesEl = document.getElementById('palette-swatches');
+  const brushKeys = ['U', 'D', 'F', 'B', 'R', 'L', 'GRAY'];
+
+  brushKeys.forEach(key => {
+    const sw = document.createElement('div');
+    sw.className = 'swatch' + (key === selectedBrush ? ' selected' : '');
+    sw.style.background = PALETTE[key].hex;
+    sw.title = PALETTE[key].name;
+    sw.addEventListener('click', () => {
+      selectedBrush = key;
+      document.querySelectorAll('.swatch').forEach(el => el.classList.remove('selected'));
+      sw.classList.add('selected');
+    });
+    swatchesEl.appendChild(sw);
+  });
+
+  function enterCustomMode() {
+    if (currentAnim || moveQueue.length > 0) return;
+    customMode = true;
+    moveHistory = [];
+    stopTimer(false);
+    timerEl.textContent = '0.00';
+    timerEl.style.color = '#facc15';
+    paletteBox.classList.add('show');
+    statusEl.textContent = '填色模式：點選顏色後點擊方塊貼紙（中心塊固定）';
+  }
+
+  function exitCustomMode(readyToSolve = true) {
+    customMode = false;
+    paletteBox.classList.remove('show');
+    if (readyToSolve) {
+      moveHistory = [];
+      timerState = 'READY';
+      timerEl.style.color = '#facc15';
+      statusEl.textContent = '自訂設定完成！轉動任意層開始計時';
+    }
+  }
+
+  document.getElementById('btn-custom').addEventListener('click', () => {
+    if (customMode) exitCustomMode(true);
+    else enterCustomMode();
+  });
+
+  document.getElementById('btn-clear-gray').addEventListener('click', () => {
+    for (const c of cubies) {
+      for (const f of c.faces) {
+        if (f.isOuter && !f.isCenterSticker) {
+          f.color = 'GRAY';
+        }
+      }
+    }
+  });
+
+  document.getElementById('btn-finish-custom').addEventListener('click', () => {
+    exitCustomMode(true);
+  });
+
+  // 速度滑桿與快捷按鈕
+  const speedSlider = document.getElementById('speed-slider');
+  const speedVal = document.getElementById('speed-val');
+  const presetBtns = document.querySelectorAll('.speed-presets button');
+
+  function setSolveSpeed(ms) {
+    solveStepDuration = Number(ms);
+    speedSlider.value = solveStepDuration;
+    speedVal.textContent = `${solveStepDuration} ms`;
+    presetBtns.forEach(b => {
+      b.classList.toggle('active', Number(b.getAttribute('data-speed')) === solveStepDuration);
+    });
+  }
+
+  speedSlider.addEventListener('input', (e) => setSolveSpeed(e.target.value));
+  presetBtns.forEach(btn => {
+    btn.addEventListener('click', () => setSolveSpeed(btn.getAttribute('data-speed')));
+  });
+
+  document.getElementById('btn-scramble').addEventListener('click', scrambleCube);
+  document.getElementById('btn-solve').addEventListener('click', autoSolve);
+  document.getElementById('btn-reset').addEventListener('click', resetCube);
+  document.getElementById('btn-view').addEventListener('click', resetCameraView);
+})();
+</script>
+</body>
+</html>
