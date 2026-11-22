@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>3x3 雙控魔術方塊（支援自訂填色自動還原）</title>
+  <title>3x3 雙控魔術方塊（確定性層先法自動還原版）</title>
   <style>
     * {
       box-sizing: border-box;
@@ -64,7 +64,7 @@
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
     }
     #main-panel {
-      max-width: 390px;
+      max-width: 400px;
     }
     .header-row {
       display: flex;
@@ -109,7 +109,7 @@
       font-size: 0.8rem;
       color: #9ca3af;
       margin-top: 4px;
-      line-height: 1.35;
+      line-height: 1.4;
     }
     .controls {
       display: flex;
@@ -195,8 +195,23 @@
       flex-wrap: wrap;
       align-items: center;
       gap: 8px;
+      margin-bottom: 6px;
+    }
+    .color-counts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 0.72rem;
+      color: #cbd5e1;
       margin-bottom: 8px;
     }
+    .count-tag {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2px 7px;
+      border-radius: 6px;
+    }
+    .count-tag.ok { color: #4ade80; }
+    .count-tag.err { color: #f87171; }
     .swatch {
       width: 28px;
       height: 28px;
@@ -353,9 +368,10 @@
 
     <div id="color-palette-box">
       <div class="palette-row" id="palette-swatches"></div>
+      <div class="color-counts" id="color-counts"></div>
       <div class="controls" style="margin-top: 4px;">
         <button id="btn-clear-gray" class="warn">全設為灰（清空）</button>
-        <button id="btn-finish-custom" class="accent">完成並開始解題</button>
+        <button id="btn-finish-custom" class="accent">完成並自動解題</button>
       </div>
     </div>
 
@@ -387,25 +403,4 @@
       <div><kbd>.</kbd> 視角右  /  <kbd>Enter</kbd> 視角左</div>
     </div>
     <div class="hint">
-      - <strong>所見即所得</strong>：轉動視角後，按鍵直接以「眼前正面」為準<br>
-      - <strong>自訂填色自動還原</strong>：填完六面每色各 9 張後，按「自動還原」即可搜尋解法
-    </div>
-  </div>
-</div>
-
-<div id="touch-pad">
-  <div class="pad-card" id="pad-card">
-    <div class="pad-header">
-      <span>觸控快捷轉動（依目前眼前正面）</span>
-      <span>雙指捏合可縮放大小</span>
-    </div>
-    <div class="pad-grid">
-      <button class="pad-btn" data-act="L_UP">左上<span class="sub">7</span></button>
-      <button class="pad-btn" data-act="U_LEFT">上左<span class="sub">8</span></button>
-      <button class="pad-btn" data-act="U_RIGHT">上右<span class="sub">5</span></button>
-      <button class="pad-btn" data-act="R_UP">右上<span class="sub">9</span></button>
-
-      <button class="pad-btn" data-act="L_DOWN">左下<span class="sub">1</span></button>
-      <button class="pad-btn" data-act="F_CCW">前逆<span class="sub">4</span></button>
-      <button class="pad-btn" data-act="F_CW">前順<span class="sub">6</span></button>
-      <button class="pad-btn" data-act="R_DOWN">右下<span class="sub">3</span>
+      - <strong>自訂填色</strong>：中心塊固定（上黃、下白、前綠、後藍、右橘、左紅），點外圍貼紙填滿每色 9 張後，按「完成並自動解題」或「自動還原」即可逐步
