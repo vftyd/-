@@ -211,7 +211,6 @@ L左順
 L'左逆
 
 
-// ==================== 1. 常數與色彩定義 ====================
 const COLORS = {
 U: { name: '白', hex: '#ffffff', num: 0xffffff },
 D: { name: '黃', hex: '#facc15', num: 0xfacc15 },
@@ -229,7 +228,6 @@ B: new THREE.Vector3(0, 0, -1),
 R: new THREE.Vector3(1, 0, 0),
 L: new THREE.Vector3(-1, 0, 0)
 };
-// ==================== 2. Three.js 場景初始化 ====================
 const container = document.getElementById('canvas-container');
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 100);
@@ -251,14 +249,14 @@ scene.add(dirLight1);
 const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.25);
 dirLight2.position.set(-8, -10, -6);
 scene.add(dirLight2);
-// ==================== 3. 建立 3x3 魔術方塊模型 ====================
 const cubeGroup = new THREE.Group();
 scene.add(cubeGroup);
 let cubies = [];
 let stickers = [];
 function createStickerTexture(hexColor) {
 const canvas = document.createElement('canvas');
-canvas.width = 128; canvas.height = 128;
+canvas.width = 128;
+canvas.height = 128;
 const ctx = canvas.getContext('2d');
 ctx.fillStyle = '#111827';
 ctx.fillRect(0, 0, 128, 128);
@@ -290,12 +288,12 @@ const coreGeo = new THREE.BoxGeometry(0.96, 0.96, 0.96);
 const coreMat = new THREE.MeshStandardMaterial({ color: COLORS.CORE.num, roughness: 0.6 });
 const planeGeo = new THREE.PlaneGeometry(0.92, 0.92);
 const facesConfig = [
-{ key: 'R', pos: [0.485, 0, 0], rot: [0, Math.PI / 2, 0], cond: (x, y, z) => x === 1 },
-{ key: 'L', pos: [-0.485, 0, 0], rot: [0, -Math.PI / 2, 0], cond: (x, y, z) => x === -1 },
-{ key: 'U', pos: [0, 0.485, 0], rot: [-Math.PI / 2, 0, 0], cond: (x, y, z) => y === 1 },
-{ key: 'D', pos: [0, -0.485, 0], rot: [Math.PI / 2, 0, 0], cond: (x, y, z) => y === -1 },
-{ key: 'F', pos: [0, 0, 0.485], rot:, cond: (x, y, z) => z === 1 },
-{ key: 'B', pos: [0, 0, -0.485], rot: [0, Math.PI, 0], cond: (x, y, z) => z === -1 }
+{ key: 'R', px: 0.485, py: 0, pz: 0, rx: 0, ry: Math.PI / 2, rz: 0, cond: (x, y, z) => x === 1 },
+{ key: 'L', px: -0.485, py: 0, pz: 0, rx: 0, ry: -Math.PI / 2, rz: 0, cond: (x, y, z) => x === -1 },
+{ key: 'U', px: 0, py: 0.485, pz: 0, rx: -Math.PI / 2, ry: 0, rz: 0, cond: (x, y, z) => y === 1 },
+{ key: 'D', px: 0, py: -0.485, pz: 0, rx: Math.PI / 2, ry: 0, rz: 0, cond: (x, y, z) => y === -1 },
+{ key: 'F', px: 0, py: 0, pz: 0.485, rx: 0, ry: 0, rz: 0, cond: (x, y, z) => z === 1 },
+{ key: 'B', px: 0, py: 0, pz: -0.485, rx: 0, ry: Math.PI, rz: 0, cond: (x, y, z) => z === -1 }
 ];
 for (let x = -1; x <= 1; x++) {
 for (let y = -1; y <= 1; y++) {
@@ -308,8 +306,8 @@ facesConfig.forEach(fc => {
 if (fc.cond(x, y, z)) {
 const mat = new THREE.MeshBasicMaterial({ map: stickerTextures[fc.key] });
 const sticker = new THREE.Mesh(planeGeo, mat);
-sticker.position.set(fc.pos[0], fc.pos[1], fc.pos[2]);
-sticker.rotation.set(fc.rot[0], fc.rot[1], fc.rot[2]);
+sticker.position.set(fc.px, fc.py, fc.pz);
+sticker.rotation.set(fc.rx, fc.ry, fc.rz);
 sticker.userData = {
 colorKey: fc.key,
 isCenter: (Math.abs(x) + Math.abs(y) + Math.abs(z) === 1),
@@ -326,7 +324,6 @@ cubies.push(cubie);
 }
 }
 buildCube();
-// ==================== 4. 狀態管理、計時器與動畫佇列 ====================
 let moveDuration = 180;
 let isAnimating = false;
 let moveQueue = [];
@@ -363,7 +360,6 @@ function updateStatus(msg, color = '#9ca3af') {
 statusEl.textContent = msg;
 statusEl.style.color = color;
 }
-// ==================== 5. 層轉動與動畫引擎 ====================
 const MOVE_DEFS = {
 U: { axis: 'y', layer: 1, angle: -Math.PI / 2 },
 D: { axis: 'y', layer: -1, angle: Math.PI / 2 },
@@ -472,15 +468,14 @@ processQueue();
 }
 requestAnimationFrame(animateStep);
 }
-// ==================== 6. 讀取方塊狀態與 Kociemba 自動求解 ====================
 function getCubeStateString() {
 const faceOrders = [
-{ face: 'U', normal: new THREE.Vector3(0, 1, 0), coords: [[-1,1,-1],[0,1,-1],[1,1,-1],[-1,1,0],[0,1,0],[1,1,0],[-1,1,1],[0,1,1],[1,1,1]] },
-{ face: 'R', normal: new THREE.Vector3(1, 0, 0), coords: [[1,1,1],[1,1,0],[1,1,-1],[1,0,1],[1,0,0],[1,0,-1],[1,-1,1],[1,-1,0],[1,-1,-1]] },
-{ face: 'F', normal: new THREE.Vector3(0, 0, 1), coords: [[-1,1,1],[0,1,1],[1,1,1],[-1,0,1],[0,0,1],[1,0,1],[-1,-1,1],[0,-1,1],[1,-1,1]] },
-{ face: 'D', normal: new THREE.Vector3(0, -1, 0), coords: [[-1,-1,1],[0,-1,1],[1,-1,1],[-1,-1,0],[0,-1,0],[1,-1,0],[-1,-1,-1],[0,-1,-1],[1,-1,-1]] },
-{ face: 'L', normal: new THREE.Vector3(-1, 0, 0), coords: [[-1,1,-1],[-1,1,0],[-1,1,1],[-1,0,-1],[-1,0,0],[-1,0,1],[-1,-1,-1],[-1,-1,0],[-1,-1,1]] },
-{ face: 'B', normal: new THREE.Vector3(0, 0, -1), coords: [[1,1,-1],[0,1,-1],[-1,1,-1],[1,0,-1],[0,0,-1],[-1,0,-1],[1,-1,-1],[0,-1,-1],[-1,-1,-1]] }
+{ face: 'U', normal: new THREE.Vector3(0, 1, 0), flat: [-1,1,-1, 0,1,-1, 1,1,-1, -1,1,0, 0,1,0, 1,1,0, -1,1,1, 0,1,1, 1,1,1] },
+{ face: 'R', normal: new THREE.Vector3(1, 0, 0), flat: [1,1,1, 1,1,0, 1,1,-1, 1,0,1, 1,0,0, 1,0,-1, 1,-1,1, 1,-1,0, 1,-1,-1] },
+{ face: 'F', normal: new THREE.Vector3(0, 0, 1), flat: [-1,1,1, 0,1,1, 1,1,1, -1,0,1, 0,0,1, 1,0,1, -1,-1,1, 0,-1,1, 1,-1,1] },
+{ face: 'D', normal: new THREE.Vector3(0, -1, 0), flat: [-1,-1,1, 0,-1,1, 1,-1,1, -1,-1,0, 0,-1,0, 1,-1,0, -1,-1,-1, 0,-1,-1, 1,-1,-1] },
+{ face: 'L', normal: new THREE.Vector3(-1, 0, 0), flat: [-1,1,-1, -1,1,0, -1,1,1, -1,0,-1, -1,0,0, -1,0,1, -1,-1,-1, -1,-1,0, -1,-1,1] },
+{ face: 'B', normal: new THREE.Vector3(0, 0, -1), flat: [1,1,-1, 0,1,-1, -1,1,-1, 1,0,-1, 0,0,-1, -1,0,-1, 1,-1,-1, 0,-1,-1, -1,-1,-1] }
 ];
 const centerColorMap = {};
 const worldNormal = new THREE.Vector3();
@@ -494,8 +489,10 @@ centerColorMap[s.userData.colorKey] = dirKey;
 });
 let stateStr = '';
 for (const f of faceOrders) {
-for (const c of f.coords) {
-const cx = c[0], cy = c[1], cz = c[2];
+for (let i = 0; i < 27; i += 3) {
+const cx = f.flat.at(i);
+const cy = f.flat.at(i + 1);
+const cz = f.flat.at(i + 2);
 const found = stickers.find(s => {
 s.userData.cubie.getWorldPosition(worldPos);
 if (Math.round(worldPos.x) !== cx || Math.round(worldPos.y) !== cy || Math.round(worldPos.z) !== cz) return false;
@@ -573,7 +570,6 @@ updateStatus('無法求解此色塊組合，請檢查填色是否符合魔術方
 }
 }, 30);
 }
-// ==================== 7. 自訂填色模式 ====================
 const paletteBox = document.getElementById('color-palette-box');
 const swatchRow = document.getElementById('swatch-row');
 const colorCountsEl = document.getElementById('color-counts');
@@ -621,7 +617,6 @@ paletteBox.classList.remove('show');
 updateStatus('已離開填色模式。', '#9ca3af');
 }
 }
-// ==================== 8. 滑鼠與觸控雙向控制 ====================
 const raycaster = new THREE.Raycaster();
 const pointerDownPos = new THREE.Vector2();
 let hitSticker = null;
@@ -727,7 +722,6 @@ return null;
 renderer.domElement.addEventListener('pointerdown', onPointerDown);
 window.addEventListener('pointermove', onPointerMove);
 window.addEventListener('pointerup', onPointerUp);
-// ==================== 9. 鍵盤與 UI 按鈕事件綁定 ====================
 window.addEventListener('keydown', e => {
 if (isPaintMode || e.repeat) return;
 const key = e.key.toUpperCase();
@@ -817,7 +811,6 @@ const hidden = padCard.style.display === 'none';
 padCard.style.display = hidden ? 'block' : 'none';
 mobileToggle.textContent = hidden ? '隱藏按鍵' : '顯示按鍵';
 });
-// ==================== 10. 視角正面偵測與主渲染迴圈 ====================
 const frontDot = document.getElementById('front-dot');
 const frontLabel = document.getElementById('front-label');
 function updateFrontIndicator() {
@@ -854,10 +847,6 @@ animate();
 
 
 
-### 更新 GitHub Pages 後的小提醒
-1. 覆蓋 `index.html` 並 `Commit changes` 後，GitHub Pages 通常需要 **30 秒～1 分鐘** 重新部署。
-2. 重新整理網頁時，請按 **`Ctrl + Shift + R`**（強制清除快取重新載入），即可看到完整的控制面板與 3D 魔術方塊。
-
 <FollowUp>
-更新並按 `Ctrl + Shift + R` 重新整理後，如果畫面仍有異常，請按 **`F12` 打開 Console 截圖**給我，我會立刻幫你定位原因。
+請點擊程式碼區塊右上角的**「複製」圖示**貼入 `index.html`（務必確認檔案結尾就是 `</html>`，沒有多餘的中文說明），如果仍有任何問題歡迎再截圖給我！
 </FollowUp>
