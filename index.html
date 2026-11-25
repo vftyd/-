@@ -187,7 +187,7 @@
       </div>
       <div class="hint">
         • <b>滑鼠/觸控拖曳方塊</b>：依視角方向直接撥動該層。<br/>
-        • <b>拖曳背景空白處</b>：自由旋轉 360° 觀察视角。<br/>
+        • <b>拖曳背景空白處</b>：自由旋轉 360° 觀察視角。<br/>
         • <b>自訂填色模式</b>：點選色票後點擊方塊貼紙上色，支援自動求解還原。
       </div>
     </div>
@@ -196,7 +196,7 @@
   <div id="touch-pad">
     <div class="pad-card" id="pad-card">
       <div class="pad-header">
-        <span>快捷轉動面板（支援視角自適應）</span>
+        <span>快捷轉動面板（支援滑鼠與觸控）</span>
         <span id="move-counter">步數：0</span>
       </div>
       <div class="pad-grid">
@@ -213,12 +213,12 @@ L'左逆
 
 // ==================== 1. 常數與色彩定義 ====================
 const COLORS = {
-U: { name: '白', hex: '#ffffff', num: 0xffffff }, // +Y
-D: { name: '黃', hex: '#facc15', num: 0xfacc15 }, // -Y
-F: { name: '綠', hex: '#16a34a', num: 0x16a34a }, // +Z
-B: { name: '藍', hex: '#2563eb', num: 0x2563eb }, // -Z
-R: { name: '紅', hex: '#dc2626', num: 0xdc2626 }, // +X
-L: { name: '橙', hex: '#f97316', num: 0xf97316 }, // -X
+U: { name: '白', hex: '#ffffff', num: 0xffffff },
+D: { name: '黃', hex: '#facc15', num: 0xfacc15 },
+F: { name: '綠', hex: '#16a34a', num: 0x16a34a },
+B: { name: '藍', hex: '#2563eb', num: 0x2563eb },
+R: { name: '紅', hex: '#dc2626', num: 0xdc2626 },
+L: { name: '橙', hex: '#f97316', num: 0xf97316 },
 CORE: { hex: '#111827', num: 0x111827 }
 };
 const FACE_NORMALS = {
@@ -244,7 +244,6 @@ controls.dampingFactor = 0.08;
 controls.enablePan = false;
 controls.minDistance = 4.5;
 controls.maxDistance = 14;
-// 燈光設定
 scene.add(new THREE.AmbientLight(0xffffff, 0.78));
 const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.45);
 dirLight1.position.set(8, 12, 10);
@@ -256,14 +255,13 @@ scene.add(dirLight2);
 const cubeGroup = new THREE.Group();
 scene.add(cubeGroup);
 let cubies = [];
-let stickers = []; // 儲存所有可點擊上色/偵測的貼紙 Mesh
+let stickers = [];
 function createStickerTexture(hexColor) {
 const canvas = document.createElement('canvas');
 canvas.width = 128; canvas.height = 128;
 const ctx = canvas.getContext('2d');
 ctx.fillStyle = '#111827';
 ctx.fillRect(0, 0, 128, 128);
-// 圓角貼紙外觀
 ctx.fillStyle = hexColor;
 const pad = 10, r = 18, w = 128 - pad * 2, h = 128 - pad * 2;
 ctx.beginPath();
@@ -284,7 +282,7 @@ stickerTextures[k] = createStickerTexture(COLORS[k].hex);
 }
 function buildCube() {
 while (cubeGroup.children.length > 0) {
-cubeGroup.remove(cubeGroup.children[0]);
+cubeGroup.remove(cubeGroup.children.item(0));
 }
 cubies = [];
 stickers = [];
@@ -310,8 +308,8 @@ facesConfig.forEach(fc => {
 if (fc.cond(x, y, z)) {
 const mat = new THREE.MeshBasicMaterial({ map: stickerTextures[fc.key] });
 const sticker = new THREE.Mesh(planeGeo, mat);
-sticker.position.set(...fc.pos);
-sticker.rotation.set(...fc.rot);
+sticker.position.set(fc.pos[0], fc.pos[1], fc.pos[2]);
+sticker.rotation.set(fc.rot[0], fc.rot[1], fc.rot[2]);
 sticker.userData = {
 colorKey: fc.key,
 isCenter: (Math.abs(x) + Math.abs(y) + Math.abs(z) === 1),
@@ -337,7 +335,6 @@ let isScrambling = false;
 let isAutoSolving = false;
 let isPaintMode = false;
 let selectedPaintColor = 'F';
-// 計時器變數
 let timerRunning = false;
 let timerReady = false;
 let startTime = 0;
@@ -379,7 +376,7 @@ Y: { axis: 'y', layer: null, angle: -Math.PI / 2 },
 Z: { axis: 'z', layer: null, angle: -Math.PI / 2 }
 };
 function parseMoveToken(token) {
-const base = token[0].toUpperCase();
+const base = token.charAt(0).toUpperCase();
 const modifier = token.slice(1);
 const def = MOVE_DEFS[base];
 if (!def) return null;
@@ -405,7 +402,6 @@ function processQueue() {
 if (isAnimating || moveQueue.length === 0) return;
 const move = moveQueue.shift();
 isAnimating = true;
-// 篩選要旋轉的小方塊
 const activeCubies = cubies.filter(c => {
 if (move.layer === null) return true;
 return Math.round(c.position[move.axis]) === move.layer;
@@ -417,7 +413,6 @@ const startT = performance.now();
 const duration = isScrambling ? Math.min(70, moveDuration) : moveDuration;
 function animateStep(now) {
 const t = Math.min(1, (now - startT) / duration);
-// easeOutCubic
 const ease = 1 - Math.pow(1 - t, 3);
 pivot.rotation[move.axis] = move.targetAngle * ease;
 if (t < 1) {
@@ -427,7 +422,6 @@ pivot.rotation[move.axis] = move.targetAngle;
 pivot.updateMatrixWorld();
 activeCubies.forEach(c => {
 cubeGroup.attach(c);
-// 對齊網格防止浮點數誤差累積
 c.position.set(
 Math.round(c.position.x),
 Math.round(c.position.y),
@@ -480,7 +474,6 @@ requestAnimationFrame(animateStep);
 }
 // ==================== 6. 讀取方塊狀態與 Kociemba 自動求解 ====================
 function getCubeStateString() {
-// Kociemba 順序: U1..U9, R1..R9, F1..F9, D1..D9, L1..L9, B1..B9
 const faceOrders = [
 { face: 'U', normal: new THREE.Vector3(0, 1, 0), coords: [[-1,1,-1],[0,1,-1],[1,1,-1],[-1,1,0],[0,1,0],[1,1,0],[-1,1,1],[0,1,1],[1,1,1]] },
 { face: 'R', normal: new THREE.Vector3(1, 0, 0), coords: [[1,1,1],[1,1,0],[1,1,-1],[1,0,1],[1,0,0],[1,0,-1],[1,-1,1],[1,-1,0],[1,-1,-1]] },
@@ -489,7 +482,6 @@ const faceOrders = [
 { face: 'L', normal: new THREE.Vector3(-1, 0, 0), coords: [[-1,1,-1],[-1,1,0],[-1,1,1],[-1,0,-1],[-1,0,0],[-1,0,1],[-1,-1,-1],[-1,-1,0],[-1,-1,1]] },
 { face: 'B', normal: new THREE.Vector3(0, 0, -1), coords: [[1,1,-1],[0,1,-1],[-1,1,-1],[1,0,-1],[0,0,-1],[-1,0,-1],[1,-1,-1],[0,-1,-1],[-1,-1,-1]] }
 ];
-// 建立中心塊顏色對照表（因為整體旋轉 X/Y/Z 可能改變中心位置）
 const centerColorMap = {};
 const worldNormal = new THREE.Vector3();
 const worldPos = new THREE.Vector3();
@@ -502,7 +494,8 @@ centerColorMap[s.userData.colorKey] = dirKey;
 });
 let stateStr = '';
 for (const f of faceOrders) {
-for (const [cx, cy, cz] of f.coords) {
+for (const c of f.coords) {
+const cx = c[0], cy = c[1], cz = c[2];
 const found = stickers.find(s => {
 s.userData.cubie.getWorldPosition(worldPos);
 if (Math.round(worldPos.x) !== cx || Math.round(worldPos.y) !== cy || Math.round(worldPos.z) !== cz) return false;
@@ -533,7 +526,6 @@ if (new Set(slice).size !== 1) return false;
 }
 return true;
 }
-// 初始化 CubeJS 求解器表
 let solverReady = false;
 setTimeout(() => {
 if (window.Cube) {
@@ -566,10 +558,9 @@ return;
 } catch (err) {
 console.warn('Kociemba 求解失敗，改用歷史逆推:', err);
 }
-// 備援方案：若狀態無法由 Kociemba 解析且有操作紀錄，則逆向還原
 if (moveHistory.length > 0) {
 const reverseMoves = [...moveHistory].reverse().map(m => {
-if (m.endsWith("'")) return m[0];
+if (m.endsWith("'")) return m.charAt(0);
 if (m.endsWith("2")) return m;
 return m + "'";
 });
@@ -630,15 +621,15 @@ paletteBox.classList.remove('show');
 updateStatus('已離開填色模式。', '#9ca3af');
 }
 }
-// ==================== 8. 滑鼠與觸控雙向控制（視角旋轉 vs 撥動方塊層） ====================
+// ==================== 8. 滑鼠與觸控雙向控制 ====================
 const raycaster = new THREE.Raycaster();
 const pointerDownPos = new THREE.Vector2();
 let hitSticker = null;
 let hitNormal = null;
 let isDraggingSlice = false;
 function getPointerNDC(e) {
-const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+const clientX = (e.touches && e.touches.length > 0) ? e.touches.item(0).clientX : e.clientX;
+const clientY = (e.touches && e.touches.length > 0) ? e.touches.item(0).clientY : e.clientY;
 return new THREE.Vector2(
 (clientX / window.innerWidth) * 2 - 1,
 -(clientY / window.innerHeight) * 2 + 1
@@ -651,8 +642,9 @@ pointerDownPos.copy(ndc);
 raycaster.setFromCamera(ndc, camera);
 const intersects = raycaster.intersectObjects(stickers, false);
 if (intersects.length > 0) {
-hitSticker = intersects[0].object;
-hitNormal = intersects[0].face.normal.clone().transformDirection(hitSticker.matrixWorld).round();
+const firstHit = intersects.at(0);
+hitSticker = firstHit.object;
+hitNormal = firstHit.face.normal.clone().transformDirection(hitSticker.matrixWorld).round();
 if (isPaintMode) {
 if (!hitSticker.userData.isCenter) {
 hitSticker.userData.colorKey = selectedPaintColor;
@@ -665,7 +657,6 @@ updateStatus('中心塊決定每一面的基準色，無法修改喔！', '#f871
 hitSticker = null;
 return;
 }
-// 點到方塊時暫時鎖定視角旋轉，改為層滑動偵測
 controls.enabled = false;
 isDraggingSlice = true;
 } else {
@@ -678,17 +669,15 @@ function onPointerMove(e) {
 if (!isDraggingSlice || !hitSticker || isPaintMode) return;
 const ndc = getPointerNDC(e);
 const delta = ndc.clone().sub(pointerDownPos);
-if (delta.length() < 0.08) return; // 滑動門檻
+if (delta.length() < 0.08) return;
 isDraggingSlice = false;
 controls.enabled = true;
-// 計算螢幕滑動方向對應的 3D 切線方向
 const cubiePos = new THREE.Vector3();
 hitSticker.userData.cubie.getWorldPosition(cubiePos);
 cubiePos.round();
 const camRight = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0).normalize();
 const camUp = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1).normalize();
 const swipeWorld = camRight.multiplyScalar(delta.x).add(camUp.multiplyScalar(delta.y)).normalize();
-// 找出與法線垂直且與滑動方向最接近的軸
 const axes = [
 { name: 'x', vec: new THREE.Vector3(1, 0, 0) },
 { name: 'y', vec: new THREE.Vector3(0, 1, 0) },
@@ -705,7 +694,6 @@ moveDir = a.vec.clone().multiplyScalar(Math.sign(a.vec.dot(swipeWorld)));
 }
 }
 if (!moveDir) return;
-// 外積決定旋轉軸與正負方向
 const rotAxisVec = new THREE.Vector3().crossVectors(hitNormal, moveDir).round();
 let rotAxis = 'y', rotSign = 1;
 if (Math.abs(rotAxisVec.x) > 0.5) { rotAxis = 'x'; rotSign = Math.sign(rotAxisVec.x); }
@@ -753,7 +741,6 @@ const token = e.shiftKey ? key + "'" : key;
 enqueueMove(token, true);
 }
 });
-// 隨機打亂
 document.getElementById('btn-scramble').addEventListener('click', () => {
 if (isAnimating || isScrambling || isAutoSolving) return;
 if (isPaintMode) togglePaintMode(false);
@@ -765,14 +752,13 @@ const faces = ['U', 'D', 'L', 'R', 'F', 'B'];
 const mods = ['', "'", '2'];
 let lastFace = '';
 for (let i = 0; i < 20; i++) {
-let f = faces[Math.floor(Math.random() * faces.length)];
-while (f === lastFace) f = faces[Math.floor(Math.random() * faces.length)];
+let f = faces.at(Math.floor(Math.random() * faces.length));
+while (f === lastFace) f = faces.at(Math.floor(Math.random() * faces.length));
 lastFace = f;
-const m = mods[Math.floor(Math.random() * mods.length)];
+const m = mods.at(Math.floor(Math.random() * mods.length));
 enqueueMove(f + m, true);
 }
 });
-// 自動還原
 document.getElementById('btn-solve').addEventListener('click', () => {
 if (isPaintMode) {
 if (!updateColorCounts()) {
@@ -783,7 +769,6 @@ togglePaintMode(false);
 }
 autoSolveCube();
 });
-// 自訂填色按鈕
 document.getElementById('btn-paint').addEventListener('click', () => {
 if (isAnimating || isScrambling || isAutoSolving) return;
 togglePaintMode(!isPaintMode);
@@ -799,7 +784,6 @@ autoSolveCube();
 document.getElementById('btn-paint-cancel').addEventListener('click', () => {
 togglePaintMode(false);
 });
-// 重置復原
 document.getElementById('btn-reset').addEventListener('click', () => {
 if (isAnimating || isScrambling || isAutoSolving) return;
 if (isPaintMode) togglePaintMode(false);
@@ -809,7 +793,6 @@ buildCube();
 resetTimer();
 updateStatus('方塊已重置為初始復原狀態。', '#4ade80');
 });
-// 轉速控制
 const speedSlider = document.getElementById('speed-slider');
 const speedVal = document.getElementById('speed-val');
 const presetBtns = document.querySelectorAll('.speed-presets button');
@@ -821,14 +804,12 @@ presetBtns.forEach(b => b.classList.toggle('active', Number(b.dataset.speed) ===
 }
 speedSlider.addEventListener('input', e => setSpeed(e.target.value));
 presetBtns.forEach(btn => btn.addEventListener('click', () => setSpeed(btn.dataset.speed)));
-// 底部觸控按鍵
 document.querySelectorAll('.pad-btn').forEach(btn => {
 btn.addEventListener('click', () => {
 if (isPaintMode) return;
 enqueueMove(btn.dataset.move, true);
 });
 });
-// 手機版切換觸控鍵盤顯示
 const mobileToggle = document.getElementById('mobile-pad-toggle');
 const padCard = document.getElementById('pad-card');
 mobileToggle.addEventListener('click', () => {
@@ -841,8 +822,8 @@ const frontDot = document.getElementById('front-dot');
 const frontLabel = document.getElementById('front-label');
 function updateFrontIndicator() {
 const camDir = new THREE.Vector3();
-camera.getWorldDirection(camDir).negate(); // 從原點指向攝影機
-camDir.y = 0; // 取水平投影判斷目前朝向的正面
+camera.getWorldDirection(camDir).negate();
+camDir.y = 0;
 if (camDir.lengthSq() < 0.001) return;
 camDir.normalize();
 const horizFaces = ['F', 'B', 'R', 'L'];
@@ -873,14 +854,10 @@ animate();
 
 
 
-### 已實作的核心功能說明
-* **雙向直覺操控**：支援鍵盤標準公式按鍵（`U/D/L/R/F/B` 與 `Shift` 逆時針、`X/Y/Z` 整體翻轉）、滑鼠/手指直接撥動方塊單層，以及空白處拖曳 360° 旋轉視角。
-* **自訂填色與自動求解**：點擊「自訂填色」後可自由更改非中心貼紙的顏色並即時統計各色數量（需滿足每色 9 格），完成後按下「確認並還原」會透過內建的 Kociemba 兩階段演算法自動計算並演出還原步驟。
-* **計時器與轉速控制**：隨機打亂後轉動第一下即自動開始計時，全部復原後自動停錶並顯示總步數；下方滑桿可即時切換動畫速度（極快至教學慢速）。
+### 更新 GitHub Pages 後的小提醒
+1. 覆蓋 `index.html` 並 `Commit changes` 後，GitHub Pages 通常需要 **30 秒～1 分鐘** 重新部署。
+2. 重新整理網頁時，請按 **`Ctrl + Shift + R`**（強制清除快取重新載入），即可看到完整的控制面板與 3D 魔術方塊。
 
 <FollowUp>
-如果你想進一步微調這個網頁，請告訴我需要調整的地方：
-* 讓**觸控面板按鍵**隨目前視角正面自動轉換方向（例如轉到紅面時按 `F` 轉動紅面）
-* 加入**單步上一步 / 下一步**的教學拆解控制按鈕
-* 將**所有外部 CDN 函式庫**改為完全離線可執行的版本
+更新並按 `Ctrl + Shift + R` 重新整理後，如果畫面仍有異常，請按 **`F12` 打開 Console 截圖**給我，我會立刻幫你定位原因。
 </FollowUp>
