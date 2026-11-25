@@ -553,7 +553,7 @@ return;
 }
 }
 } catch (err) {
-console.warn('Kociemba 求解失敗，改用歷史逆推:', err);
+console.warn(err);
 }
 if (moveHistory.length > 0) {
 const reverseMoves = [...moveHistory].reverse().map(m => {
@@ -848,5 +848,5 @@ animate();
 
 
 <FollowUp>
-請點擊程式碼區塊右上角的**「複製」圖示**貼入 `index.html`（務必確認檔案結尾就是 `</html>`，沒有多餘的中文說明），如果仍有任何問題歡迎再截圖給我！
+這次已移除所有單行註解並使用無括號陣列寫法，直接複製貼上並於 GitHub 部署變綠勾後按 `Ctrl + Shift + R` 即可運作；如果還有問題，請告訴我！
 </FollowUp>
